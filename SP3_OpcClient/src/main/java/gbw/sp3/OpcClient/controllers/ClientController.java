@@ -41,9 +41,7 @@ public class ClientController {
         boolean failedToReadANode = false;
 
         List<KnownNodes> nodesToRead;
-        if(body == null){
-            nodesToRead = Arrays.stream(KnownNodes.values()).toList();
-        }else{
+        if (body != null) {
             JSONWrapper wrapped = new JSONWrapper(body);
             ClientRequestValidationService.ClientValidationError requestError = validationService.validateReadRequest(wrapped);
             if(requestError != null){
@@ -53,15 +51,17 @@ public class ClientController {
                         ));
             }
             nodesToRead = KnownNodes.parseList(wrapped.get("nodeNames").split("_"));
+        } else {
+            nodesToRead = Arrays.stream(KnownNodes.values()).toList();
         }
 
         Map<KnownNodes, DataValue> response = OpcClient.read(nodesToRead);
         if(response == null){
             return new ResponseEntity<>(new Touple<>(null,"Unable to read any nodes. Is the client initialized?"),HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        for(KnownNodes node : KnownNodes.values()){
+        for(KnownNodes node : nodesToRead){
             if(response.get(node) == null){
-                errorMessage += node.displayName + ",";
+                errorMessage += node.displayName + ", ";
                 failedToReadANode = true;
             }
         }
