@@ -27,13 +27,26 @@ public class ClientController {
     @Autowired
     private ClientRequestValidationService validationService;
 
+    /**
+     * Checks any connected OPC UA Server for the following values and returns these:
+     * <p> machineStatus: int, </p>
+     * <p> translation: String (what this status means according to known statuses),</p>
+     * <p> errorMessage: String (any notable error encountered),</p>
+     * <p> faulty: Boolean (true if there's a fundamental issue with this status. Usually a connection issue.)</p>
+     * @return json response containing aforementioned fields.
+     */
     @GetMapping(path=pathRoot, produces = "application/json")
     public @ResponseBody ResponseEntity<MachineStatus> status()
     {
         return new ResponseEntity<>(OpcClient.status(),HttpStatus.OK);
     }
 
-
+    /**
+     * Will read a list of specified nodes from the OPC UA Server stored in a Map along with a status message, if any.
+     * This status message will contain what nodes couldn't be read or if there was a general problem reading ANY of the nodes.
+     * @param body containing an UNDERSCORE separated list as a single string in a field called nodeNames.
+     * @return A map of the value of the node, or null, as the value and the node name as the key.
+     */
     @GetMapping(path=pathRoot + "/read", produces = "application/json")
     public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> readValues(@RequestBody(required = false) String body)
     {
@@ -70,6 +83,11 @@ public class ClientController {
                 new Touple<>(response,failedToReadANode ? errorMessage : "Successfully read all valid nodes."), HttpStatus.OK);
     }
 
+    /**
+     * Writes a value to a single node in the OPC UA server.
+     * @param body json request body expecting fields: "nodeName" and "value".
+     * @return the status of the machine and any error encountered
+     */
     @PostMapping(path=pathRoot+"/write")
     public @ResponseBody ResponseEntity<OpcClient.InitializationError> writeValue(@RequestBody String body){
         if(body == null){
@@ -98,12 +116,18 @@ public class ClientController {
         );
     }
 
+    /**
+     * Expects a json body containing fields "protocol", "ip" and "port" (optional).
+     * Will attempt to initialize a connection opening up for the other client related api calls.
+     * @param body json request body
+     * @return Any error encountered when initializing
+     */
     @PostMapping(path=pathRoot+"/initialize", produces = "application/json")
     public @ResponseBody ResponseEntity<OpcClient.InitializationError> initialize(@RequestBody() String body)
     {
         JSONWrapper wrapped = new JSONWrapper(body);
         ClientRequestValidationService.ClientValidationError requestError = validationService.validateInitializeRequest
-                (wrapped, new String[]{"protocol", "ip","port"}, new String[0]);
+                (wrapped, new String[]{"protocol", "ip"}, new String[0]);
         if(requestError != null){
             return new ResponseEntity<>(
                     new OpcClient.InitializationError(requestError.httpStatus(), requestError.errorMessage()),
@@ -114,7 +138,7 @@ public class ClientController {
         OpcClient.InitializationError error = OpcClient.initialize(
                 wrapped.getOr("protocol","opc.tcp"),
                 wrapped.getOr("ip","999.999.999"),
-                IntUtil.parseOr(wrapped.getOr("port","6969"),-1)
+                IntUtil.parseOr(wrapped.get("port"),-1)
         );
         return new ResponseEntity<>(error, HttpStatusCode.valueOf(error.status()));
     }

@@ -68,6 +68,7 @@ public enum KnownNodes {
     {
         return this.id;
     }
+
     public static KnownNodes parse(String name){
         for(KnownNodes node : KnownNodes.values()){
             if(node.displayName.equals(name)){
