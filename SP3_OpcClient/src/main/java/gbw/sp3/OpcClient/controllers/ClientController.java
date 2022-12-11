@@ -83,7 +83,7 @@ public class ClientController {
                 new Touple<>(response,failedToReadANode ? errorMessage : "Successfully read all valid nodes."), HttpStatus.OK);
     }
 
-    /**
+     /**
      * Writes a value to a single node in the OPC UA server.
      * @param body json request body expecting fields: "nodeName" and "value".
      * @return the status of the machine and any error encountered
