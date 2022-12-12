@@ -150,7 +150,7 @@ public class ClientController {
         return readValues("{\"nodeNames\":\"InventoryIsFilling_Barley_Hops_Malt_Wheat_Yeast\"}");
     }
 
-    @PostMapping(path=pathRoot+"execute", produces = "application/json")
+    @PostMapping(path=pathRoot+"/execute", produces = "application/json")
     public @ResponseBody ResponseEntity<MachineStatus> executeBatch(@RequestBody(required = false) String body)
     {
         MachineStatus status = OpcClient.status();
