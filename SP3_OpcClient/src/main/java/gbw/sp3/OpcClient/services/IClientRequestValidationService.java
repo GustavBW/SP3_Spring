@@ -4,8 +4,8 @@ import gbw.sp3.OpcClient.util.JSONWrapper;
 
 public interface IClientRequestValidationService {
 
-    ClientRequestValidationService.ClientValidationError validateInitializeRequest
-            (JSONWrapper wrappedRequest, String[] bodyFieldsExpected, String[] headersExpected);
+    ClientRequestValidationService.ClientValidationError validateRequestBody
+            (JSONWrapper wrappedRequest, String[] bodyFieldsExpected);
 
     ClientRequestValidationService.ClientValidationError validateReadRequest(JSONWrapper wrappedRequest);
 

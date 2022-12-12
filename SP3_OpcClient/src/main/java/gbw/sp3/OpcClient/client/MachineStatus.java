@@ -14,6 +14,7 @@ public class MachineStatus implements Serializable {
     private final int machineStatus;
     private final String translation;
     private final String errorMessage;
+    private final Object vibrations;
     private final boolean faulty;
 
     public MachineStatus(int machineStatus, String error)
@@ -22,14 +23,15 @@ public class MachineStatus implements Serializable {
     }
     public MachineStatus(int machineStatus, String translation, String error)
     {
-        this(machineStatus,translation,error,false);
+        this(machineStatus,translation,error,false,0);
     }
-    public MachineStatus(int machineStatus, String translation, String error, boolean faulty)
+    public MachineStatus(int machineStatus, String translation, String error, boolean faulty, Object vibrations)
     {
         this.machineStatus = machineStatus;
         this.translation = translation;
         this.errorMessage = error;
         this.faulty = faulty;
+        this.vibrations = vibrations;
     }
 
 
@@ -51,6 +53,9 @@ public class MachineStatus implements Serializable {
     public String getErrorMessage(){
         return errorMessage;
     }
-
+    @JsonProperty
+    public Object getVibrations() {
+        return vibrations;
+    }
 }
 

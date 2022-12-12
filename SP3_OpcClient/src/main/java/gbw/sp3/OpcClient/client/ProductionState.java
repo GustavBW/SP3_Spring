@@ -21,8 +21,8 @@ public enum ProductionState {
     ACTIVATING(19,"activating"),
     INVALID_STATE(20,"invalid_state");
     
-    final int value;
-    final String name;
+    public final int value;
+    public final String name;
     ProductionState(int value, String name)
     {
         this.name = name;

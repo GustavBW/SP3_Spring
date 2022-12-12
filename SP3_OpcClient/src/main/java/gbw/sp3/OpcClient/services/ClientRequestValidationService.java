@@ -25,24 +25,14 @@ public class ClientRequestValidationService implements IClientRequestValidationS
      * @param wrappedRequest request wrapped in a JSONWrapper
      * @returns null on valid request.
      */
-    public ClientValidationError validateInitializeRequest
-    (JSONWrapper wrappedRequest, String[] bodyFieldsExpected, String[] headersExpected)
+    public ClientValidationError validateRequestBody
+    (JSONWrapper wrappedRequest, String[] bodyFieldsExpected)
     {
         String errorMessage = "Expected request body to contain fields: ";
         for(String expected : bodyFieldsExpected){
             errorMessage += expected + ",";
         }
         for(String expected : bodyFieldsExpected){
-            if(wrappedRequest.get(expected) == null){
-                return new ClientValidationError(400, errorMessage);
-            }
-        }
-
-        errorMessage = "Expected request headers to contain headers: ";
-        for(String expected : headersExpected){
-            errorMessage += expected + ",";
-        }
-        for(String expected : headersExpected){
             if(wrappedRequest.get(expected) == null){
                 return new ClientValidationError(400, errorMessage);
             }

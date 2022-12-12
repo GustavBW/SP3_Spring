@@ -14,7 +14,6 @@ import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReadResponse;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 
-import javax.xml.crypto.Data;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,17 +46,19 @@ public class OpcClient {
     public static MachineStatus status()
     {
         if (client == null) {
-            return new MachineStatus(20, "","Client is not initialized.",true);
+            return new MachineStatus(20, "","Client is not initialized.",true,-1);
         }
         int statusInt = 20;
+        Object vibrations = null;
         try {
             client.connect().get();
             statusInt = IntUtil.parseOr(client.readValue(1000,TimestampsToReturn.Both,KnownNodes.CurrentState.nodeId).get(), 20);
+            vibrations = client.readValue(1000,TimestampsToReturn.Both,KnownNodes.Vibrations.nodeId).get();
         }catch (Exception e){
-            return new MachineStatus(20,"", "Client is unable to connect. Has it been initialized?",true);
+            return new MachineStatus(20,"", "Client is unable to connect. Has it been initialized?",true,-1);
         }
 
-        return new MachineStatus(statusInt,"none");
+        return new MachineStatus(statusInt,ProductionState.from(statusInt).name(),"none",false,vibrations);
     }
 
     public static MachineStatus write(KnownNodes node, Variant variant)
@@ -74,12 +75,13 @@ public class OpcClient {
            return new MachineStatus(20,"","unable to write value: " + variant.getValue() + " to node: " + node.displayName);
        }
        if(code != null && !code.isGood()){
+           MachineStatus status = status();
            return new MachineStatus(20,"",
                    "Error: " +
                            " isBad: " + code.isBad() + ","+
                    " securityError: " + code.isSecurityError() + ","+
                    " isUncertain: " + code.isUncertain() + ","+
-                   " actual value: " + code.getValue(),true);
+                   " actual value: " + code.getValue(),true,status.getVibrations());
        }
 
        return current;

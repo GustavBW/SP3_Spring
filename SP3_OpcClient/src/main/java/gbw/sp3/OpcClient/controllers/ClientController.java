@@ -3,6 +3,7 @@ package gbw.sp3.OpcClient.controllers;
 import gbw.sp3.OpcClient.client.KnownNodes;
 import gbw.sp3.OpcClient.client.MachineStatus;
 import gbw.sp3.OpcClient.client.OpcClient;
+import gbw.sp3.OpcClient.client.ProductionState;
 import gbw.sp3.OpcClient.services.ClientRequestValidationService;
 import gbw.sp3.OpcClient.util.ArrayUtil;
 import gbw.sp3.OpcClient.util.IntUtil;
@@ -126,8 +127,8 @@ public class ClientController {
     public @ResponseBody ResponseEntity<OpcClient.InitializationError> initialize(@RequestBody() String body)
     {
         JSONWrapper wrapped = new JSONWrapper(body);
-        ClientRequestValidationService.ClientValidationError requestError = validationService.validateInitializeRequest
-                (wrapped, new String[]{"protocol", "ip"}, new String[0]);
+        ClientRequestValidationService.ClientValidationError requestError = validationService.validateRequestBody
+                (wrapped, new String[]{"protocol", "ip"});
         if(requestError != null){
             return new ResponseEntity<>(
                     new OpcClient.InitializationError(requestError.httpStatus(), requestError.errorMessage()),
@@ -141,6 +142,65 @@ public class ClientController {
                 IntUtil.parseOr(wrapped.get("port"),-1)
         );
         return new ResponseEntity<>(error, HttpStatusCode.valueOf(error.status()));
+    }
+
+    @GetMapping(path=pathRoot+"/inventory", produces = "application/json")
+    public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> getInventory()
+    {
+        return readValues("{\"nodeNames\":\"InventoryIsFilling_Barley_Hops_Malt_Wheat_Yeast\"}");
+    }
+
+    @PostMapping(path=pathRoot+"execute", produces = "application/json")
+    public @ResponseBody ResponseEntity<MachineStatus> executeBatch(@RequestBody(required = false) String body)
+    {
+        MachineStatus status = OpcClient.status();
+        JSONWrapper wrapped = new JSONWrapper(body);
+        ClientRequestValidationService.ClientValidationError requestError
+                = validationService.validateRequestBody(wrapped, new String[]{"id","beerType","batchSize","speed"});
+        if(requestError != null){
+            return new ResponseEntity<>(
+                    new MachineStatus(status.getMachineStatus(),
+                            requestError.errorMessage()),HttpStatus.BAD_REQUEST);
+        }
+
+        if(status.isFaulty() || status.getMachineStatus() != ProductionState.IDLE.value){
+            return new ResponseEntity<>(status, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        MachineStatus setIdStatus = OpcClient.write(KnownNodes.SetBatchId,new Variant(wrapped.get("id"))),
+            setBeerTypeStatus = OpcClient.write(KnownNodes.SetRecipe, new Variant(wrapped.get("beerType"))),
+            setBatchSizeStatus = OpcClient.write(KnownNodes.SetQuantity, new Variant(wrapped.get("batchSize"))),
+            setSpeedStatus = OpcClient.write(KnownNodes.SetSpeed, new Variant(wrapped.get("speed"))),
+            setCMD = OpcClient.write(KnownNodes.SetCommand, new Variant("Start")),
+            setExecute = OpcClient.write(KnownNodes.ExecuteCommands, new Variant(true));
+
+        Map<String, MachineStatus> writeResults = Map.of(
+                "id", setIdStatus,
+                "beerType", setBeerTypeStatus,
+                "batchSize", setBatchSizeStatus,
+                "speed", setSpeedStatus,
+                "cmd", setCMD,
+                "execute", setExecute
+        );
+
+        boolean writeErrorOccoured = false;
+        String nodesThatFailed = "";
+
+        for(String s : writeResults.keySet()){
+            if(writeResults.get(s).isFaulty()){
+                writeErrorOccoured = true;
+                nodesThatFailed += s + ",";
+            }
+        }
+
+        if(writeErrorOccoured){
+            return new ResponseEntity<>(
+                    new MachineStatus(status.getMachineStatus(), ProductionState.from(status.getMachineStatus()).name(),
+                    "Failed to write to nodes: " + nodesThatFailed, true, status.getVibrations()),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return new ResponseEntity<>(status, HttpStatus.OK);
     }
 
 }
