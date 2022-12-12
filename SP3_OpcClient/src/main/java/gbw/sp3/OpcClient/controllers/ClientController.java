@@ -1,9 +1,6 @@
 package gbw.sp3.OpcClient.controllers;
 
-import gbw.sp3.OpcClient.client.KnownNodes;
-import gbw.sp3.OpcClient.client.MachineStatus;
-import gbw.sp3.OpcClient.client.OpcClient;
-import gbw.sp3.OpcClient.client.ProductionState;
+import gbw.sp3.OpcClient.client.*;
 import gbw.sp3.OpcClient.services.ClientRequestValidationService;
 import gbw.sp3.OpcClient.util.ArrayUtil;
 import gbw.sp3.OpcClient.util.IntUtil;
@@ -150,6 +147,23 @@ public class ClientController {
         return readValues("{\"nodeNames\":\"InventoryIsFilling_Barley_Hops_Malt_Wheat_Yeast\"}");
     }
 
+    @GetMapping(path=pathRoot+"/ressource/{name}", produces="application/json")
+    public @ResponseBody ResponseEntity<Object[]> getRessource(@PathVariable String name)
+    {
+        switch (name){
+            case "KnownNodes", "knownnodes","knownNodes" -> {
+                return new ResponseEntity<>(KnownNodes.values(), HttpStatus.OK);
+            }
+            case "ProductionState", "productionstate", "productionState" -> {
+                return new ResponseEntity<>(ProductionState.values(), HttpStatus.OK);
+            }
+            case "BatchTypes", "batchtypes", "batchTypes" -> {
+                return new ResponseEntity<>(BatchTypes.values(), HttpStatus.OK);
+            }
+        }
+        return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+    }
+
     @PostMapping(path=pathRoot+"/execute", produces = "application/json")
     public @ResponseBody ResponseEntity<MachineStatus> executeBatch(@RequestBody(required = false) String body)
     {
@@ -171,7 +185,7 @@ public class ClientController {
             setBeerTypeStatus = OpcClient.write(KnownNodes.SetRecipe, new Variant(wrapped.get("beerType"))),
             setBatchSizeStatus = OpcClient.write(KnownNodes.SetQuantity, new Variant(wrapped.get("batchSize"))),
             setSpeedStatus = OpcClient.write(KnownNodes.SetSpeed, new Variant(wrapped.get("speed"))),
-            setCMD = OpcClient.write(KnownNodes.SetCommand, new Variant("Start")),
+            setCMD = OpcClient.write(KnownNodes.SetCommand, new Variant(ControlCommandTypes.START.value)),
             setExecute = OpcClient.write(KnownNodes.ExecuteCommands, new Variant(true));
 
         Map<String, MachineStatus> writeResults = Map.of(
