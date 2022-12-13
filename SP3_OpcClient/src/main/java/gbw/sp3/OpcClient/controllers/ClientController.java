@@ -2,10 +2,9 @@ package gbw.sp3.OpcClient.controllers;
 
 import gbw.sp3.OpcClient.client.*;
 import gbw.sp3.OpcClient.services.ClientRequestValidationService;
-import gbw.sp3.OpcClient.util.ArrayUtil;
-import gbw.sp3.OpcClient.util.IntUtil;
-import gbw.sp3.OpcClient.util.JSONWrapper;
-import gbw.sp3.OpcClient.util.Touple;
+import gbw.sp3.OpcClient.util.*;
+import org.eclipse.milo.opcua.sdk.client.nodes.UaDataTypeNode;
+import org.eclipse.milo.opcua.sdk.client.nodes.UaVariableNode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,7 +106,9 @@ public class ClientController {
                     HttpStatus.BAD_REQUEST);
         }
 
-        MachineStatus status = OpcClient.write(nodeToWriteTo, new Variant(wrapped.get("value")));
+        String dataType = wrapped.getOr("dataType", "string");
+
+        MachineStatus status = OpcClient.write(nodeToWriteTo, dataType, wrapped.get("value"));
         return new ResponseEntity<>(
                 new OpcClient.InitializationError(status.isFaulty() ? 400 : 200, status.getErrorMessage()),
                 HttpStatus.valueOf(status.isFaulty() ? 400 : 200)
@@ -141,29 +142,54 @@ public class ClientController {
         return new ResponseEntity<>(error, HttpStatusCode.valueOf(error.status()));
     }
 
+    /**
+     * Fetches the nodes "InventoryIsFilling", "Barley", "Hops", "Malt", "Wheat" and "Yeast" from the server.
+     * @return a json string with a map of the node names and their corresponding values
+     */
     @GetMapping(path=pathRoot+"/inventory", produces = "application/json")
     public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> getInventory()
     {
         return readValues("{\"nodeNames\":\"InventoryIsFilling_Barley_Hops_Malt_Wheat_Yeast\"}");
     }
 
-    @GetMapping(path=pathRoot+"/ressource/{name}", produces="application/json")
-    public @ResponseBody ResponseEntity<Object[]> getRessource(@PathVariable String name)
+    /**
+     * Fetches the enum values that the Api is using to communicate with the opc ua server.
+     * @param name of resource
+     * @return A json string with fields "first" and "second", "first" containing the name of
+     * the resource and "second" the values of said resource.
+     */
+    @GetMapping(path=pathRoot+"/resource/{name}", produces="application/json")
+    public @ResponseBody ResponseEntity<Touple<String,Object[]>> getResource(@PathVariable String name)
     {
+        String[] availableResources = new String[
+                ]{"KnownNodes", "ProductionState", "BatchTypes"};
         switch (name){
             case "KnownNodes", "knownnodes","knownNodes" -> {
-                return new ResponseEntity<>(KnownNodes.values(), HttpStatus.OK);
+                return new ResponseEntity<>(
+                        new Touple<String,Object[]> ("KnownNodes",KnownNodes.values()), HttpStatus.OK);
             }
             case "ProductionState", "productionstate", "productionState" -> {
-                return new ResponseEntity<>(ProductionState.values(), HttpStatus.OK);
+                return new ResponseEntity<>(
+                        new Touple<String,Object[]> ("ProductionState", ProductionState.values()), HttpStatus.OK);
             }
             case "BatchTypes", "batchtypes", "batchTypes" -> {
-                return new ResponseEntity<>(BatchTypes.values(), HttpStatus.OK);
+                return new ResponseEntity<>(
+                        new Touple<String,Object[]> ("BatchTypes", BatchTypes.values()), HttpStatus.OK);
             }
+
         }
-        return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(
+                new Touple<String,Object[]>("Error, no such resource.", new Object[]{"Choose from: " + ArrayUtil.arrayJoinWith(availableResources,",")}),
+                HttpStatus.BAD_REQUEST
+        );
     }
 
+
+    /**
+     * Sets the needed parameters on the server IF the server is in the "idle" state.
+     * @param body a json string containing fields: "id", "beerType", "batchSize" and "speed"
+     * @return a json string with a MachineStatus with any errors encountered.
+     */
     @PostMapping(path=pathRoot+"/execute", produces = "application/json")
     public @ResponseBody ResponseEntity<MachineStatus> executeBatch(@RequestBody(required = false) String body)
     {
@@ -171,6 +197,7 @@ public class ClientController {
         JSONWrapper wrapped = new JSONWrapper(body);
         ClientRequestValidationService.ClientValidationError requestError
                 = validationService.validateRequestBody(wrapped, new String[]{"id","beerType","batchSize","speed"});
+
         if(requestError != null){
             return new ResponseEntity<>(
                     new MachineStatus(status.getMachineStatus(),
@@ -181,12 +208,20 @@ public class ClientController {
             return new ResponseEntity<>(status, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        MachineStatus setIdStatus = OpcClient.write(KnownNodes.SetBatchId,new Variant(wrapped.get("id"))),
-            setBeerTypeStatus = OpcClient.write(KnownNodes.SetRecipe, new Variant(wrapped.get("beerType"))),
-            setBatchSizeStatus = OpcClient.write(KnownNodes.SetQuantity, new Variant(wrapped.get("batchSize"))),
-            setSpeedStatus = OpcClient.write(KnownNodes.SetSpeed, new Variant(wrapped.get("speed"))),
-            setCMD = OpcClient.write(KnownNodes.SetCommand, new Variant(ControlCommandTypes.START.value)),
-            setExecute = OpcClient.write(KnownNodes.ExecuteCommands, new Variant(true));
+
+        MachineStatus setIdStatus = OpcClient.write(
+                KnownNodes.SetBatchId,wrapped.get("id"), "float"),
+            setBeerTypeStatus = OpcClient.write(
+                    KnownNodes.SetRecipe, wrapped.get("beerType"),"float"),
+            setBatchSizeStatus = OpcClient.write(
+                    KnownNodes.SetQuantity, wrapped.get("batchSize"),"float"),
+            setSpeedStatus = OpcClient.write(
+                    KnownNodes.SetSpeed, wrapped.get("speed"), "float"),
+            setCMD = OpcClient.write(
+                    KnownNodes.SetCommand,ControlCommandTypes.START.value+"", "integer"),
+            setExecute = OpcClient.write(
+                    KnownNodes.ExecuteCommands, "true","bool"
+            );
 
         Map<String, MachineStatus> writeResults = Map.of(
                 "id", setIdStatus,

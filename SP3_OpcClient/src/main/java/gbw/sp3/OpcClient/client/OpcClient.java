@@ -1,6 +1,7 @@
 package gbw.sp3.OpcClient.client;
 
 import gbw.sp3.OpcClient.util.IntUtil;
+import gbw.sp3.OpcClient.util.UADataTypeUtil;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
 import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
@@ -52,8 +53,8 @@ public class OpcClient {
         Object vibrations = null;
         try {
             client.connect().get();
-            statusInt = IntUtil.parseOr(client.readValue(1000,TimestampsToReturn.Both,KnownNodes.CurrentState.nodeId).get(), 20);
-            vibrations = client.readValue(1000,TimestampsToReturn.Both,KnownNodes.Vibrations.nodeId).get();
+            statusInt = IntUtil.parseOr(client.readValue(5000,TimestampsToReturn.Both,KnownNodes.CurrentState.nodeId).get().getValue(), 20);
+            vibrations = client.readValue(5000,TimestampsToReturn.Both,KnownNodes.Vibrations.nodeId).get().getValue();
         }catch (Exception e){
             return new MachineStatus(20,"", "Client is unable to connect. Has it been initialized?",true,-1);
         }
@@ -61,7 +62,7 @@ public class OpcClient {
         return new MachineStatus(statusInt,ProductionState.from(statusInt).name(),"none",false,vibrations);
     }
 
-    public static MachineStatus write(KnownNodes node, Variant variant)
+    public static MachineStatus write(KnownNodes node, Object value, String dataType)
     {
        MachineStatus current = status();
        if(current.isFaulty()){
@@ -70,10 +71,15 @@ public class OpcClient {
        StatusCode code = null;
        try{
            client.connect().get();
-           code = client.writeValue(node.nodeId, new DataValue(variant)).get(1000, TimeUnit.MILLISECONDS);
+
+           code = client.writeValue(node.nodeId, DataValue.valueOnly(
+                   castAndGetVariant(value, dataType)
+           )).get(5000, TimeUnit.MILLISECONDS);
        }catch (Exception e){
-           return new MachineStatus(20,"","unable to write value: " + variant.getValue() + " to node: " + node.displayName);
+           e.printStackTrace();
+           return new MachineStatus(20,"","unable to write value: " + value + " to node: " + node.displayName);
        }
+        System.out.println(code);
        if(code != null && !code.isGood()){
            MachineStatus status = status();
            return new MachineStatus(20,"",
@@ -85,6 +91,21 @@ public class OpcClient {
        }
 
        return current;
+    }
+    private static Variant castAndGetVariant(Object value, String dataType) throws Exception
+    {
+        switch (dataType){
+            case "double" -> {
+                return new Variant((double) value);
+            }
+            case "int32" -> {
+                return new Variant((int) value);
+            }
+            case "bool" -> {
+                return new Variant((boolean) value);
+            }
+        }
+        return new Variant((int) value);
     }
 
     public static Map<KnownNodes, DataValue> read(List<KnownNodes> nodes)
