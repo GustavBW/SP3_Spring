@@ -79,6 +79,7 @@ public enum KnownNodes {
     }
 
     public static List<KnownNodes> parseList(String[] names){
+        //Enjoy this O(n) implementation! :D
         Set<String> namesToLookFor = new HashSet<>(Arrays.stream(names).toList());
         List<KnownNodes> parsed = new ArrayList<>();
 

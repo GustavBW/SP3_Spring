@@ -176,5 +176,14 @@ public class ArrayUtil {
         }
         return toReturn.stream().mapToInt(Integer::intValue).toArray();
     }
+
+    public static void print(Object[] arr)
+    {
+        String toPrint = "";
+        for(Object obj : arr){
+            toPrint += obj + ",";
+        }
+        System.out.println(arr +": "+toPrint);
+    }
 }
 

@@ -41,28 +41,22 @@ public class ClientController {
     /**
      * Will read a list of specified nodes from the OPC UA Server stored in a Map along with a status message, if any.
      * This status message will contain what nodes couldn't be read or if there was a general problem reading ANY of the nodes.
-     * @param body containing an UNDERSCORE separated list as a single string in a field called nodeNames.
+     * @param nodeNames containing an UNDERSCORE separated list as a single string in a field called nodeNames.
      * @return A map of the value of the node, or null, as the value and the node name as the key.
      */
     @GetMapping(path=pathRoot + "/read", produces = "application/json")
-    public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> readValues(@RequestBody(required = false) String body)
+    public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> readValues(@RequestParam(required = false) String[] nodeNames)
     {
         String errorMessage = "Failed to read nodes: ";
         boolean failedToReadANode = false;
+        System.out.println("Read nodes query params: ");
+        ArrayUtil.print(nodeNames);
 
         List<KnownNodes> nodesToRead;
-        if (body != null) {
-            JSONWrapper wrapped = new JSONWrapper(body);
-            ClientRequestValidationService.ClientValidationError requestError = validationService.validateReadRequest(wrapped);
-            if(requestError != null){
-                return new ResponseEntity<>(
-                        new Touple<>(null, requestError.errorMessage() + " Valid node names are: " + ArrayUtil.arrayJoinWith(KnownNodes.getValidNames(),", ")),
-                        HttpStatusCode.valueOf(requestError.httpStatus()
-                        ));
-            }
-            nodesToRead = KnownNodes.parseList(wrapped.get("nodeNames").split("_"));
-        } else {
+        if (nodeNames == null || nodeNames.length == 0) {
             nodesToRead = Arrays.stream(KnownNodes.values()).toList();
+        } else {
+            nodesToRead = KnownNodes.parseList(nodeNames);
         }
 
         Map<KnownNodes, DataValue> response = OpcClient.read(nodesToRead);
@@ -149,8 +143,9 @@ public class ClientController {
     @GetMapping(path=pathRoot+"/inventory", produces = "application/json")
     public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> getInventory()
     {
-        return readValues("{\"nodeNames\":\"InventoryIsFilling_Barley_Hops_Malt_Wheat_Yeast\"}");
+        return readValues(INVENTORY_NODES);
     }
+    private static final String[] INVENTORY_NODES = new String[]{"InventoryIsFilling,Barley,Hops,Malt,Wheat,Yeast"};
 
     /**
      * Fetches the enum values that the Api is using to communicate with the opc ua server.
