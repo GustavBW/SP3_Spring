@@ -1,5 +1,6 @@
 package gbw.sp3.OpcClient;
 
+import gbw.sp3.OpcClient.AsyncEventLoop.EntryPoint;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -10,6 +11,7 @@ public class OpcClientApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(OpcClientApplication.class, args);
+		EntryPoint.initialize(8);
 	}
 
 	public WebMvcConfigurer corsConfigurer() {

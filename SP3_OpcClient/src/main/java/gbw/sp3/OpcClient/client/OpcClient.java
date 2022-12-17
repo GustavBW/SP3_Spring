@@ -77,16 +77,20 @@ public class OpcClient {
            )).get(5000, TimeUnit.MILLISECONDS);
        }catch (Exception e){
            e.printStackTrace();
-           return new MachineStatus(20,"","unable to write value: " + value + " to node: " + node.displayName);
+           return new MachineStatus(
+                   current.getMachineStatus(), "",
+                   "unable to write value: " + value + " to node: " + node.displayName,
+                   true,current.getVibrations()
+           );
        }
-        System.out.println(code);
+       System.out.println(code);
        if(code != null && !code.isGood()){
            MachineStatus status = status();
-           return new MachineStatus(20,"",
+           return new MachineStatus(current.getMachineStatus(),current.getTranslation(),
                    "Error: " +
-                           " isBad: " + code.isBad() + ","+
-                   " securityError: " + code.isSecurityError() + ","+
-                   " isUncertain: " + code.isUncertain() + ","+
+                    " isBad: " + code.isBad() + "," +
+                   " securityError: " + code.isSecurityError() + "," +
+                   " isUncertain: " + code.isUncertain() + "," +
                    " actual value: " + code.getValue(),true,status.getVibrations());
        }
 
