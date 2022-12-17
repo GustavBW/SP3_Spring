@@ -35,18 +35,21 @@ public class EnrichedThread implements Runnable{
     }
 
     @Override
-    public synchronized void run()
+    public void run()
     {
         System.out.println(name + " started running");
-        while(shouldBeRunning.get()){
-            try {
-                this.wait();
-                running.set(true);
-                if (currentRunnable != null) {
-                    currentRunnable.run();
+        synchronized ( this ) {
+            while (shouldBeRunning.get()) {
+                try {
+                    this.wait();
+                    running.set(true);
+                    if (currentRunnable != null) {
+                        currentRunnable.run();
+                    }
+                    running.set(false);
+                } catch (InterruptedException ignored) {
                 }
-                running.set(false);
-            } catch (InterruptedException ignored) {}
+            }
         }
         System.out.println(name + " stopped running");
     }

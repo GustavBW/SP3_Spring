@@ -15,33 +15,46 @@ public class LoadDistributor {
      */
     public int distribute(Queue<EnrichedRunnable<?>> runnables)
     {
+
         int count = 0;
         for(EnrichedThread thread : pool) {
-            EnrichedRunnable<?> current = runnables.poll();
-            if(current == null) break;
+            if(runnables.isEmpty()) break;
+            if(!verifyThreadState(thread)) continue;
 
-            if(verifyRun(thread, current)){
-                thread.setNewTarget(current);
+            EnrichedRunnable<?> nextValidRunnable = getNextValidRunnable(runnables);
+
+            if(verifyRunnable(nextValidRunnable)){
+                thread.setNewTarget(nextValidRunnable);
                 count++;
             }
         }
         return count;
     }
+    private EnrichedRunnable<?> getNextValidRunnable(Queue<EnrichedRunnable<?>> runnables)
+    {
+        EnrichedRunnable<?> current = runnables.peek();
+        while(!verifyRunnable(current) && !runnables.isEmpty())
+        {
+            current = runnables.poll();
+        }
+        return current;
+    }
 
     /**
-     * Determines wether or not this thread is available AND
-     * if the runnable should be run or is a valid runnable in the
+     * Determines wether or not the runnable should be run or is a valid runnable in the
      * first place.
-     * @param thread
      * @param runnable
      * @return
      */
-    private boolean verifyRun(EnrichedThread thread, EnrichedRunnable<?> runnable)
+    private boolean verifyRunnable(EnrichedRunnable<?> runnable)
     {
-        return thread.isAvailable()
-                && runnable != null
+        return runnable != null
                 && !runnable.isRunning.get()
                 && !runnable.isDone.get();
+    }
+    private boolean verifyThreadState(EnrichedThread thread)
+    {
+        return thread.isAvailable();
     }
 
     /**

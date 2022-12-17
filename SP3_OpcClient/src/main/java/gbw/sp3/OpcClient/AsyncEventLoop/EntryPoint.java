@@ -18,17 +18,7 @@ public class EntryPoint implements Runnable{
 
    static {
       Runtime.getRuntime().addShutdownHook(
-           new Thread(() -> {
-              shutdown();
-              synchronized (instance) {
-                 instance.notify();
-              }
-              try {
-                 manager.join();
-              } catch (InterruptedException e) {
-                 e.printStackTrace();
-              }
-           })
+           new Thread(EntryPoint::shutdown)
       );
    }
 
@@ -49,13 +39,26 @@ public class EntryPoint implements Runnable{
       return enriched;
    }
 
+   public static <T> List<EnrichedRunnable<T>> async(List<iFunction<T>> list)
+   {
+      List<EnrichedRunnable<T>> toReturn = new ArrayList<>(list.size());
+      for(iFunction<T> func : list) {
+         toReturn.add(new EnrichedRunnable<>(func));
+      }
+      queue.addAll(toReturn);
+      synchronized ( instance ) {
+         instance.notify();
+      }
+      return toReturn;
+   }
+
    /**
     * Awaits execution of given EnrichedRunnable.
     * @param runnable the runnable to wait for
     * @param <T> the type of value returned
     * @return null or T depending on the Runnable
     */
-   public static synchronized <T> T await(EnrichedRunnable<T> runnable)
+   public static  <T> T await(EnrichedRunnable<T> runnable)
    {
       return await(runnable,0);
    }
@@ -67,7 +70,7 @@ public class EntryPoint implements Runnable{
     * pool yet, the returned value will be null.
     * @param msecs the maximum time allowed.
     */
-   public static synchronized <T> T await(EnrichedRunnable<T> runnable, int msecs)
+   public static  <T> T await(EnrichedRunnable<T> runnable, int msecs)
    {
       return runnable.get(msecs);
    }
@@ -80,7 +83,7 @@ public class EntryPoint implements Runnable{
    @Override
    public void run()
    {
-      long msecs = RETRY_DELAY_MSECS;
+      long msecs = 0;
 
       synchronized (this) {
          while(applicationIsRunning.get()){
@@ -102,7 +105,6 @@ public class EntryPoint implements Runnable{
             }
          }
       }
-
    }
 
    public static void setRetryDelay(long msecs)
@@ -124,6 +126,7 @@ public class EntryPoint implements Runnable{
    {
       distributor.setPoolSize(poolSize);
       manager.start();
+      System.out.println(">> GBW:ASYNC System Startup Successful");
    }
 
    /**
@@ -134,6 +137,15 @@ public class EntryPoint implements Runnable{
    private static void shutdown()
    {
       applicationIsRunning.set(false);
+      synchronized (instance) {
+         instance.notify();
+      }
+      try {
+         manager.join();
+      } catch (InterruptedException e) {
+         e.printStackTrace();
+      }
       distributor.shutdown();
+      System.out.println(">> GBW:ASYNC || System Shutdown Successful");
    }
 }
