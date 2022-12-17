@@ -20,6 +20,7 @@ public class TestController {
     @GetMapping(path=pathRoot+"async")
     public String testMultipleAsync(@RequestParam String[] params)
     {
+        System.out.println("Testing multiple async calls");
         List<EnrichedRunnable<String>> promises = new ArrayList<>(params.length);
         for(int i = 0; i < params.length; i++){
             final int i2 = i;

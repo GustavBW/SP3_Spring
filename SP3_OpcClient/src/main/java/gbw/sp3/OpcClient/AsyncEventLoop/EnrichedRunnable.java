@@ -4,27 +4,23 @@ import gbw.sp3.OpcClient.AsyncEventLoop.iFunction;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class EnrichedRunnable<T> {
+public class EnrichedRunnable<T> implements Runnable{
 
     public volatile AtomicBoolean isDone = new AtomicBoolean(false);
     public volatile AtomicBoolean isRunning = new AtomicBoolean(false);
     private T returnObject;
     public iFunction<T> runnable;
-    public Thread runner;
 
     public EnrichedRunnable(iFunction<T> runnable){
         Objects.requireNonNull(runnable);
         this.runnable = runnable;
     }
 
-    public void run(Thread runner) {
-        this.runner = runner;
+    @Override
+    public void run() {
         isRunning.set(true);
-        returnObject = runnable.execute();
 
-        synchronized (this) {
-            this.notify();
-        }
+        returnObject = runnable.execute();
 
         isDone.set(true);
         isRunning.set(false);
@@ -32,14 +28,21 @@ public class EnrichedRunnable<T> {
 
     public synchronized T get()
     {
-        if(isRunning.get()) {
-            try {
-                Thread.currentThread().wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        return get(0);
+    }
+    public synchronized T get(int msecs)
+    {
+        long endTime = System.currentTimeMillis() + msecs;
+        if(!isDone.get()){
+            if(msecs <= 0){
+                while(!isDone.get()){
+                    System.out.print("");
+                }
+            }else {
+                while (System.currentTimeMillis() < endTime && !isDone.get()) {
+                    System.out.print("");
+                }
             }
-        }else {
-            run(Thread.currentThread());
         }
         return returnObject;
     }

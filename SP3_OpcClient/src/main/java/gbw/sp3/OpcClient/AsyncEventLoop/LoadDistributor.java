@@ -16,9 +16,12 @@ public class LoadDistributor {
     public int distribute(Queue<EnrichedRunnable<?>> runnables)
     {
         int count = 0;
-        for( EnrichedThread thread : pool ) {
-            if(verifyRun(thread, runnables.peek())){
-                thread.setNewTarget(runnables.poll());
+        for(EnrichedThread thread : pool) {
+            EnrichedRunnable<?> current = runnables.poll();
+            if(current == null) break;
+
+            if(verifyRun(thread, current)){
+                thread.setNewTarget(current);
                 count++;
             }
         }
@@ -43,8 +46,9 @@ public class LoadDistributor {
 
     /**
      * Shuts down the current thread pool and boots a new one
-     * with the specified size.
-     * @param size
+     * with the specified size. Duely note that this may
+     * interfere with currently running processes.
+     * @param size - pool size
      */
     public void setPoolSize(int size)
     {
@@ -56,12 +60,12 @@ public class LoadDistributor {
         pool = new EnrichedThread[size];
         for (int i = 0; i < pool.length; i++)
         {
-            pool[i] = new EnrichedThread();
+            pool[i] = new EnrichedThread("Pool-Thread["+i+"]");
         }
     }
 
     /**
-     * Shuts down all active threads in pool
+     * Shuts down all active threads in the pool
      * immediatly with no error mitigation
      */
     public void shutdown()
@@ -69,6 +73,11 @@ public class LoadDistributor {
         shutdown(0);
     }
 
+    /**
+     * Shuts down the current thread pool.
+     * @param msecs - how many milliseconds each thread is allowed to take to shut down.
+     *              (not total shutdown time)
+     */
     public void shutdown(int msecs)
     {
         for(EnrichedThread thread : pool) {

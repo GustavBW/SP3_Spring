@@ -6,14 +6,27 @@ public class EnrichedThread implements Runnable{
 
     private AtomicBoolean running = new AtomicBoolean(false);
     private AtomicBoolean shouldBeRunning = new AtomicBoolean(true);
-    private final Thread thread = new Thread();
+    private final Thread thread;
     private EnrichedRunnable<?> currentRunnable;
+    private String name;
 
+    public EnrichedThread(String name)
+    {
+        thread = new Thread(this);
+        thread.start();
+        this.name = name;
+    }
     public EnrichedThread()
     {
-        thread.start();
+        this("EnrichedThread");
     }
 
+    /**
+     * Sets the target of the thread and notifies the object. Be aware that this does not take into account
+     * wether the thread was already executing a runnable or not.
+     * Check by calling the atomically based method isAvailable() first.
+     * @param runnable the new target
+     */
     public synchronized void setNewTarget(EnrichedRunnable<?> runnable)
     {
         running.set(true);
@@ -22,34 +35,43 @@ public class EnrichedThread implements Runnable{
     }
 
     @Override
-    public void run()
+    public synchronized void run()
     {
+        System.out.println(name + " started running");
         while(shouldBeRunning.get()){
-            try{
-                thread.wait();
+            try {
+                this.wait();
                 running.set(true);
-                if(currentRunnable != null){
-                    currentRunnable.run(Thread.currentThread());
+                if (currentRunnable != null) {
+                    currentRunnable.run();
                 }
                 running.set(false);
-            }catch (InterruptedException ignored){}
+            } catch (InterruptedException ignored) {}
         }
+        System.out.println(name + " stopped running");
     }
 
+    /**
+     * @return Wether or not it is safe to assign a new runnable to this thread.
+     */
     public boolean isAvailable()
     {
         return !running.get();
     }
 
-    public void shutdown(int allowedMaximumDelay)
+    /**
+     * Joins and/or interrupts the thread within the time specified.
+     * @param maxDelay how long this is allowed to take.
+     */
+    public void shutdown(int maxDelay)
     {
         shouldBeRunning.set(false);
-        if(allowedMaximumDelay == 0){
+        if(maxDelay <= 0){
             thread.interrupt();
         }
 
         try {
-            thread.join(allowedMaximumDelay);
+            thread.join(maxDelay);
         } catch (InterruptedException e) {
             thread.interrupt();
         }

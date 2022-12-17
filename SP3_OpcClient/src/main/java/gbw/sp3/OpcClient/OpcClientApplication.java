@@ -11,7 +11,7 @@ public class OpcClientApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(OpcClientApplication.class, args);
-		EntryPoint.initialize(8);
+		EntryPoint.initialize(4);
 	}
 
 	public WebMvcConfigurer corsConfigurer() {
