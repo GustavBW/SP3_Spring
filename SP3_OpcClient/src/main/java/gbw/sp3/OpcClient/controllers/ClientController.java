@@ -45,7 +45,8 @@ public class ClientController {
      * @return A map of the value of the node, or null, as the value and the node name as the key.
      */
     @GetMapping(path=pathRoot + "/read", produces = "application/json")
-    public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> readValues(@RequestParam(required = false) String[] nodeNames)
+    public @ResponseBody ResponseEntity<Touple<Map<KnownNodes, DataValue>,String>> readValues(
+            @RequestParam(required = false) String[] nodeNames)
     {
         String errorMessage = "Failed to read nodes: ";
         boolean failedToReadANode = false;
@@ -100,9 +101,9 @@ public class ClientController {
                     HttpStatus.BAD_REQUEST);
         }
 
-        String dataType = wrapped.getOr("dataType", "string");
+        String dataType = wrapped.getOr("dataType", "float");
 
-        MachineStatus status = OpcClient.write(nodeToWriteTo, dataType, wrapped.get("value"));
+        MachineStatus status = OpcClient.write(nodeToWriteTo, wrapped.get("value"), dataType);
         return new ResponseEntity<>(
                 new OpcClient.InitializationError(status.isFaulty() ? 400 : 200, status.getErrorMessage()),
                 HttpStatus.valueOf(status.isFaulty() ? 400 : 200)
