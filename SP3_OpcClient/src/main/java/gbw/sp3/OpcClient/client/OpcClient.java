@@ -1,18 +1,15 @@
 package gbw.sp3.OpcClient.client;
 
 import gbw.sp3.OpcClient.util.IntUtil;
-import gbw.sp3.OpcClient.util.UADataTypeUtil;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
 import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
-import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
 import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
-import org.eclipse.milo.opcua.stack.core.types.structured.ReadResponse;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 
 import java.util.HashMap;
@@ -30,7 +27,7 @@ public class OpcClient {
     private static final AtomicLong clientHandles = new AtomicLong(1L);
 
     public record InitializationError(int status, String error){}
-    private static InitializationError NO_ERROR = new InitializationError(200,"Client initialization success.");
+    private static final InitializationError NO_ERROR = new InitializationError(200,"Client initialization success.");
 
     /**
      * Initializes client on new address. Returns a string ERROR if it fails.
@@ -52,7 +49,6 @@ public class OpcClient {
         int statusInt = 20;
         Object vibrations = null;
         try {
-            client.connect().get();
             statusInt = IntUtil.parseOr(client.readValue(5000,TimestampsToReturn.Both,KnownNodes.CurrentState.nodeId).get().getValue(), 20);
             vibrations = client.readValue(5000,TimestampsToReturn.Both,KnownNodes.Vibrations.nodeId).get().getValue();
         }catch (Exception e){
@@ -62,7 +58,7 @@ public class OpcClient {
         return new MachineStatus(statusInt,ProductionState.from(statusInt).name(),"none",false,vibrations);
     }
 
-    public static MachineStatus write(KnownNodes node, Object value, String dataType)
+    public static MachineStatus write(KnownNodes node, String value, String dataType)
     {
        MachineStatus current = status();
        if(current.isFaulty()){
@@ -70,10 +66,8 @@ public class OpcClient {
        }
        StatusCode code = null;
        try{
-           client.connect().get();
-
            code = client.writeValue(node.nodeId, DataValue.valueOnly(
-                   castAndGetVariant(value, dataType)
+                   parseAndGetVariant(value, dataType)
            )).get(5000, TimeUnit.MILLISECONDS);
        }catch (Exception e){
            e.printStackTrace();
@@ -84,32 +78,124 @@ public class OpcClient {
            );
        }
        System.out.println(code);
-       if(code != null && !code.isGood()){
-           MachineStatus status = status();
-           return new MachineStatus(current.getMachineStatus(),current.getTranslation(),
-                   "Error: " +
-                    " isBad: " + code.isBad() + "," +
-                   " securityError: " + code.isSecurityError() + "," +
-                   " isUncertain: " + code.isUncertain() + "," +
-                   " actual value: " + code.getValue(),true,status.getVibrations());
-       }
-
-       return current;
+       return code != null && !code.isGood() ? codeAsMachineStatus(code,current) : current;
     }
-    private static Variant castAndGetVariant(Object value, String dataType) throws Exception
+
+    private static MachineStatus codeAsMachineStatus(StatusCode code, MachineStatus current)
+    {
+        return new MachineStatus(current.getMachineStatus(),current.getTranslation(),
+                "Error: " +
+                        " isBad: " + code.isBad() + "," +
+                        " securityError: " + code.isSecurityError() + "," +
+                        " isUncertain: " + code.isUncertain() + "," +
+                        " actual value: " + code.getValue(),!code.isGood(),current.getVibrations());
+    }
+    private static Variant parseAndGetVariant(String value, String dataType) throws Exception
     {
         switch (dataType){
             case "double" -> {
-                return new Variant((double) value);
+                return new Variant(Double.parseDouble(value));
             }
-            case "int32" -> {
-                return new Variant((int) value);
+            case "int" -> {
+                return new Variant(Integer.parseInt(value));
+            }
+            case "float" -> {
+                return new Variant(Float.parseFloat(value));
+            }
+            case "long" -> {
+                return new Variant(Long.parseLong(value));
+            }
+            case "short" -> {
+                return new Variant(Short.parseShort(value));
+            }
+            case "byte" -> {
+                return new Variant(Byte.parseByte(value));
             }
             case "bool" -> {
-                return new Variant((boolean) value);
+                return new Variant(Boolean.parseBoolean(value));
             }
         }
-        return new Variant((int) value);
+        return new Variant(Float.parseFloat(value));
+    }
+
+    public static MachineStatus setCommand(ControlCommandTypes command, boolean autoExecute)
+    {
+        MachineStatus current = status();
+        if(current.isFaulty()){
+            return current;
+        }
+        StatusCode code = null;
+        try{
+            code = client.writeValue(KnownNodes.SetCommand.nodeId, DataValue.valueOnly(
+                    new Variant(command.value)
+            )).get(5000, TimeUnit.MILLISECONDS);
+            if(autoExecute){
+                return triggerCommands();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            return new MachineStatus(
+                    current.getMachineStatus(), "",
+                    "unable set SetCommand to: " + command.name,
+                    true,current.getVibrations()
+            );
+        }
+        System.out.println(code);
+        return code != null && !code.isGood() ? codeAsMachineStatus(code,current) : current;
+    }
+    public static MachineStatus triggerCommands()
+    {
+        MachineStatus current = status();
+        if(current.isFaulty()){
+            return current;
+        }
+        StatusCode code = null;
+        try{
+            code = client.writeValue(KnownNodes.ExecuteCommands.nodeId, DataValue.valueOnly(
+                    new Variant(true)
+            )).get(5000, TimeUnit.MILLISECONDS);
+        }catch (Exception e){
+            e.printStackTrace();
+            return new MachineStatus(
+                    current.getMachineStatus(), "",
+                    "unable to execute commands",
+                    true,current.getVibrations()
+            );
+        }
+        System.out.println(code);
+        return code != null && !code.isGood() ? codeAsMachineStatus(code,current) : current;
+    }
+
+    public static MachineStatus setBatchDetails(String id, String beerType, String batchSize, String speed)
+    {
+        MachineStatus current = status();
+        if(current.isFaulty()){
+            return current;
+        }
+        StatusCode code = null;
+        try{
+
+            StatusCode idCode = client.writeValue(KnownNodes.SetBatchId.nodeId, DataValue.valueOnly(parseAndGetVariant(id,"float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode recipeCode = client.writeValue(KnownNodes.SetRecipe.nodeId, DataValue.valueOnly(parseAndGetVariant(beerType,"float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode sizeCode = client.writeValue(KnownNodes.SetQuantity.nodeId, DataValue.valueOnly(parseAndGetVariant(batchSize,"float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode speedCode = client.writeValue(KnownNodes.SetSpeed.nodeId, DataValue.valueOnly(parseAndGetVariant(speed,"float"))).get(1000, TimeUnit.MILLISECONDS);
+
+            for(StatusCode c : new StatusCode[]{idCode, recipeCode, sizeCode, speedCode}){
+                if(!c.isGood()){
+                    code = c;
+                }
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+            return new MachineStatus(
+                    current.getMachineStatus(), "",
+                    "unable to set batch details",
+                    true,current.getVibrations()
+            );
+        }
+        System.out.println(code);
+        return code != null && !code.isGood() ? codeAsMachineStatus(code,current) : current;
     }
 
     public static Map<KnownNodes, DataValue> read(List<KnownNodes> nodes)

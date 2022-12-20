@@ -22,8 +22,8 @@ public enum BatchTypes {
         if(i < 0){
             return BatchTypes.UNKNOWN;
         }
-        BatchTypes[] values = BatchTypes.values();
 
+        BatchTypes[] values = BatchTypes.values();
         if(i >= values.length){
             return BatchTypes.UNKNOWN;
         }

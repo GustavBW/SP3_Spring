@@ -50,8 +50,6 @@ public class ClientController {
     {
         String errorMessage = "Failed to read nodes: ";
         boolean failedToReadANode = false;
-        System.out.println("Read nodes query params: ");
-        ArrayUtil.print(nodeNames);
 
         List<KnownNodes> nodesToRead;
         if (nodeNames == null || nodeNames.length == 0) {
@@ -88,7 +86,7 @@ public class ClientController {
         }
         
         JSONWrapper wrapped = new JSONWrapper(body);
-        ClientRequestValidationService.ClientValidationError requestError = validationService.validateWriteRequest(wrapped);
+        ClientRequestValidationService.ClientValidationError requestError = validationService.validateRequestBody(wrapped, new String[]{"nodeName","value","dataType"});
         if(requestError != null){
             return new ResponseEntity<>(
                     new OpcClient.InitializationError(requestError.httpStatus(), requestError.errorMessage()), HttpStatus.BAD_REQUEST);
@@ -190,6 +188,10 @@ public class ClientController {
     public @ResponseBody ResponseEntity<MachineStatus> executeBatch(@RequestBody(required = false) String body)
     {
         MachineStatus status = OpcClient.status();
+        if(status.isFaulty() || status.getMachineStatus() != ProductionState.IDLE.value){
+            return new ResponseEntity<>(status, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
         JSONWrapper wrapped = new JSONWrapper(body);
         ClientRequestValidationService.ClientValidationError requestError
                 = validationService.validateRequestBody(wrapped, new String[]{"id","beerType","batchSize","speed"});
@@ -200,52 +202,14 @@ public class ClientController {
                             requestError.errorMessage()),HttpStatus.BAD_REQUEST);
         }
 
-        if(status.isFaulty() || status.getMachineStatus() != ProductionState.IDLE.value){
-            return new ResponseEntity<>(status, HttpStatus.INTERNAL_SERVER_ERROR);
+        MachineStatus writeStatus = OpcClient.setBatchDetails(wrapped.get("id"), wrapped.get("beerType"), wrapped.get("batchSize"), wrapped.get("speed"));
+        if(!writeStatus.isFaulty()){
+            writeStatus = OpcClient.setCommand(ControlCommandTypes.START, true);
         }
 
-
-        MachineStatus setIdStatus = OpcClient.write(
-                KnownNodes.SetBatchId,wrapped.get("id"), "float"),
-            setBeerTypeStatus = OpcClient.write(
-                    KnownNodes.SetRecipe, wrapped.get("beerType"),"float"),
-            setBatchSizeStatus = OpcClient.write(
-                    KnownNodes.SetQuantity, wrapped.get("batchSize"),"float"),
-            setSpeedStatus = OpcClient.write(
-                    KnownNodes.SetSpeed, wrapped.get("speed"), "float"),
-            setCMD = OpcClient.write(
-                    KnownNodes.SetCommand,ControlCommandTypes.START.value+"", "integer"),
-            setExecute = OpcClient.write(
-                    KnownNodes.ExecuteCommands, "true","bool"
-            );
-
-        Map<String, MachineStatus> writeResults = Map.of(
-                "id", setIdStatus,
-                "beerType", setBeerTypeStatus,
-                "batchSize", setBatchSizeStatus,
-                "speed", setSpeedStatus,
-                "cmd", setCMD,
-                "execute", setExecute
-        );
-
-        boolean writeErrorOccoured = false;
-        String nodesThatFailed = "";
-
-        for(String s : writeResults.keySet()){
-            if(writeResults.get(s).isFaulty()){
-                writeErrorOccoured = true;
-                nodesThatFailed += s + ",";
-            }
-        }
-
-        if(writeErrorOccoured){
-            return new ResponseEntity<>(
-                    new MachineStatus(status.getMachineStatus(), ProductionState.from(status.getMachineStatus()).name(),
-                    "Failed to write to nodes: " + nodesThatFailed, true, status.getVibrations()),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        return new ResponseEntity<>(status, HttpStatus.OK);
+        return new ResponseEntity<>(writeStatus, writeStatus.isFaulty() ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.OK);
     }
+
+    
 
 }
