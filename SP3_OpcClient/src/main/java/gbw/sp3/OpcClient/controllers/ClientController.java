@@ -38,6 +38,38 @@ public class ClientController {
         return new ResponseEntity<>(OpcClient.status(),HttpStatus.OK);
     }
 
+    @PostMapping(path=pathRoot+"/{command}", produces = "application/json")
+    public @ResponseBody ResponseEntity<MachineStatus> setCommand(@PathVariable String command, @RequestBody(required = false) String body)
+    {
+        MachineStatus status = OpcClient.status();
+        ControlCommandTypes asCmdType = ControlCommandTypes.parse(command);
+        JSONWrapper wrapped = new JSONWrapper(body);
+
+        if(body != null){
+            ClientRequestValidationService.ClientValidationError requestError = validationService.validateRequestBody(wrapped, new String[]{"autoExecute"});
+            if(requestError != null){
+                return new ResponseEntity<>(status.setErrorMessage(requestError.errorMessage()),HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        if(asCmdType == null){
+            return new ResponseEntity<>(
+                    new MachineStatus(status.getMachineStatus(), "", "unknown command type.", status.isFaulty(), status.getVibrations()),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        if(status.isFaulty()){
+            return new ResponseEntity<>(status, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        MachineStatus result = OpcClient.setCommand(
+                asCmdType,
+                Boolean.parseBoolean(wrapped.getOr("autoExecute", "false"))
+        );
+        return new ResponseEntity<>(result, result.isFaulty() ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.OK);
+    }
+
     /**
      * Will read a list of specified nodes from the OPC UA Server stored in a Map along with a status message, if any.
      * This status message will contain what nodes couldn't be read or if there was a general problem reading ANY of the nodes.

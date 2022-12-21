@@ -15,8 +15,7 @@ public class ClientRequestValidationService implements IClientRequestValidationS
      * @param bodyFieldsExpected a string array with what fields are expected
      * @returns null on valid request.
      */
-    public ClientValidationError validateRequestBody
-    (JSONWrapper wrappedRequest, String[] bodyFieldsExpected)
+    public ClientValidationError validateRequestBody(JSONWrapper wrappedRequest, String[] bodyFieldsExpected)
     {
         String errorMessage = "Expected request body to contain fields: ";
         boolean isFaulty = false;

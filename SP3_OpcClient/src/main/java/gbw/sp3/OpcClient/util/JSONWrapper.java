@@ -45,7 +45,11 @@ public class JSONWrapper {
     }
 
     public JSONWrapper(String string){
-        level1 = parse(string);
+        if(string != null) {
+            level1 = parse(string);
+        }else{
+            level1 = new HashMap<>();
+        }
     }
 
     public String getOr(String name, String valueOnFail){
