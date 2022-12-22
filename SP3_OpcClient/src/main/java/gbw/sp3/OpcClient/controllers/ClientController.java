@@ -176,7 +176,7 @@ public class ClientController {
     {
         return readValues(INVENTORY_NODES);
     }
-    private static final String[] INVENTORY_NODES = new String[]{"InventoryIsFilling,Barley,Hops,Malt,Wheat,Yeast"};
+    private static final String[] INVENTORY_NODES = new String[]{"InventoryIsFilling","Barley","Hops","Malt","Wheat","Yeast"};
 
     /**
      * Fetches the enum values that the Api is using to communicate with the opc ua server.
