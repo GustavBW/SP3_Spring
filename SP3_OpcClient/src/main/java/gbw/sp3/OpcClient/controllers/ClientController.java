@@ -234,7 +234,15 @@ public class ClientController {
                             requestError.errorMessage()),HttpStatus.BAD_REQUEST);
         }
 
-        MachineStatus writeStatus = OpcClient.setBatchDetails(wrapped.get("id"), wrapped.get("beerType"), wrapped.get("batchSize"), wrapped.get("speed"));
+        BatchTypes beerType = BatchTypes.parse(wrapped.get("beerType"));
+        if(beerType == null){
+            return new ResponseEntity<>(
+                    new MachineStatus(status.getMachineStatus(), "Invalid beer type"),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        MachineStatus writeStatus = OpcClient.setBatchDetails(wrapped.get("id"), beerType, wrapped.get("batchSize"), wrapped.get("speed"));
         if(!writeStatus.isFaulty()){
             writeStatus = OpcClient.setCommand(ControlCommandTypes.START, true);
         }
