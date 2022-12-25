@@ -175,10 +175,10 @@ public class OpcClient {
         StatusCode code = null;
         try{
 
-            StatusCode idCode = client.writeValue(KnownNodes.SetBatchId.nodeId, DataValue.valueOnly(parseAndGetVariant(id,"int"))).get(1000, TimeUnit.MILLISECONDS);
-            StatusCode recipeCode = client.writeValue(KnownNodes.SetRecipe.nodeId, DataValue.valueOnly(parseAndGetVariant(beerType.type + "","int"))).get(1000, TimeUnit.MILLISECONDS);
-            StatusCode sizeCode = client.writeValue(KnownNodes.SetQuantity.nodeId, DataValue.valueOnly(parseAndGetVariant(batchSize,"int"))).get(1000, TimeUnit.MILLISECONDS);
-            StatusCode speedCode = client.writeValue(KnownNodes.SetSpeed.nodeId, DataValue.valueOnly(parseAndGetVariant(speed,"int"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode idCode = client.writeValue(KnownNodes.SetBatchId.nodeId, DataValue.valueOnly(parseAndGetVariant(id,"float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode recipeCode = client.writeValue(KnownNodes.SetRecipe.nodeId, DataValue.valueOnly(parseAndGetVariant(beerType.type + "","float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode sizeCode = client.writeValue(KnownNodes.SetQuantity.nodeId, DataValue.valueOnly(parseAndGetVariant(batchSize,"float"))).get(1000, TimeUnit.MILLISECONDS);
+            StatusCode speedCode = client.writeValue(KnownNodes.SetSpeed.nodeId, DataValue.valueOnly(parseAndGetVariant(speed,"float"))).get(1000, TimeUnit.MILLISECONDS);
 
             for(StatusCode c : new StatusCode[]{idCode, recipeCode, sizeCode, speedCode}){
                 if(!c.isGood()){

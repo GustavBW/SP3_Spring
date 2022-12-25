@@ -1,0 +1,4 @@
+FROM openjdk:17
+ARG JAR_FILE=target/*.jar
+COPY C:/Users/guwa/Documents/GitHub/SP3_Spring/SP3_OpcClient/out/OpcClient_jar/OpcClient.jar app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]
