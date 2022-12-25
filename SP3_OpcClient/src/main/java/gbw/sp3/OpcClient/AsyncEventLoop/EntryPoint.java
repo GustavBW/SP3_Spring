@@ -126,7 +126,7 @@ public class EntryPoint implements Runnable{
    {
       distributor.setPoolSize(poolSize);
       manager.start();
-      System.out.println(">> GBW:ASYNC System Startup Successful");
+      System.out.println(">> ASYNC System Startup Successful");
    }
 
    /**
@@ -146,6 +146,6 @@ public class EntryPoint implements Runnable{
          e.printStackTrace();
       }
       distributor.shutdown();
-      System.out.println(">> GBW:ASYNC || System Shutdown Successful");
+      System.out.println(">> ASYNC || System Shutdown Successful");
    }
 }
