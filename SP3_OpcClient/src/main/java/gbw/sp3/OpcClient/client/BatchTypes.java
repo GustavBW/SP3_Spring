@@ -29,10 +29,11 @@ public enum BatchTypes {
         }
         return values[i];
     }
+
     public static BatchTypes parse(String s)
     {
         for(BatchTypes type : BatchTypes.values()){
-            if(type.name().equalsIgnoreCase(s)){
+            if(type.name().replaceAll(" ","_").equalsIgnoreCase(s)){
                 return type;
             }
         }
