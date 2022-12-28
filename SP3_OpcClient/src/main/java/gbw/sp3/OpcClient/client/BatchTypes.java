@@ -32,8 +32,11 @@ public enum BatchTypes {
 
     public static BatchTypes parse(String s)
     {
+        String normalized = s.replaceAll(" ","_");
+        normalized = normalized.replaceAll("-","_");
+
         for(BatchTypes type : BatchTypes.values()){
-            if(type.name().replaceAll(" ","_").equalsIgnoreCase(s)){
+            if(type.name().equalsIgnoreCase(normalized)){
                 return type;
             }
         }
